@@ -33,8 +33,8 @@ void alphaBlend(cv::Mat src, cv::Mat objRGB, cv::Mat objA, cv::Mat& dst, cv::Poi
 void measureTime(int i, char* pcMessage = NULL);
 
 // 内部変数定義
-CWebCam cam;						// カメラクラス
-cv::VideoWriter vw;					// 映像出力
+static CWebCam cam;					// カメラクラス
+static cv::VideoWriter vw;			// 映像出力
 
 // メイン
 int _tmain(int argc, _TCHAR* argv[])
