@@ -2,7 +2,9 @@
 //
 
 #include "stdafx.h"
+#define NOMINMAX
 #include <Windows.h>
+#include <algorithm>
 #include <process.h>
 #include <mmsystem.h>
 #include <math.h>
@@ -122,6 +124,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// メインループ
 	iTimerID = (int)SetTimer(NULL, 1, 33, NULL);
 	iScore = 0;
+	srand((unsigned int)time(NULL));
 	while (true) {
 		// イベント発生判定
 		GetMessage(&msg, NULL, 0, 0);
@@ -197,6 +200,7 @@ int _tmain(int argc, _TCHAR* argv[])
 
 		// シャボン玉当たり判定
 		itBubble = vecBubble.begin();
+		iWaitTime -= 33;
 		while (itBubble != vecBubble.end()) {
 			// シャボン玉の見える部分が半分以下なら判定しない
 			if (itBubble->poPos.y > cam.size.height - itBubble->iSize / 2) {
@@ -219,7 +223,6 @@ int _tmain(int argc, _TCHAR* argv[])
 				   matIntg.at<int>(iTop, iLeft);
 
 			// 差分から当たり判定して効果音再生＋シャボン玉消去
-			iWaitTime -= 33;
 			if (iWaitTime < 0) {
 				iWaitTime = 0;
 				iWaitLevel = 0;
@@ -229,21 +232,21 @@ int _tmain(int argc, _TCHAR* argv[])
 				case 0:
 					if (iWaitLevel < 3) {
 						PlaySound(_T("bubble3.wav"), NULL, SND_FILENAME | SND_ASYNC);
-						iWaitTime = 500; //1091;
+						iWaitTime = 960;
 						iWaitLevel = 3;
 					}
 					break;
 				case 1:
 					if (iWaitLevel < 2) {
 						PlaySound(_T("bubble2.wav"), NULL, SND_FILENAME | SND_ASYNC);
-						iWaitTime = 300; //722;
+						iWaitTime = 680;
 						iWaitLevel = 2;
 					}
 					break;
 				case 2:
 					if (iWaitLevel < 1) {
 						PlaySound(_T("bubble1.wav"), NULL, SND_FILENAME | SND_ASYNC);
-						iWaitTime = 200; //534;
+						iWaitTime = 450;
 						iWaitLevel = 1;
 					}
 					break;
@@ -290,7 +293,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		iKey = cv::waitKey(1);
 		if (iKey == 27) break;	// [Esc]キー
 
-		measureTime(1, "1Frmae Time");
+		measureTime(1, "1Frame Time");
 	}
 
 	// 後始末
@@ -314,27 +317,30 @@ BOOL WINAPI HandlerRoutine(DWORD dwCtrlType)
 // アルファブレンド
 void alphaBlend(cv::Mat src, cv::Mat objRGB, cv::Mat objA, cv::Mat& dst, cv::Point po)
 {
-	int ix, iy;
-
 	src.copyTo(dst);
-	for (iy = 0; iy < objRGB.rows; iy++) {
-		for (ix = 0; ix < objRGB.cols; ix++) {
-			if (po.x + ix < 0) continue;
-			if (po.x + ix >= src.cols) continue;
-			if (po.y + iy < 0) continue;
-			if (po.y + iy >= src.rows) continue;
 
-			dst.data[((po.y + iy) * dst.cols + po.x + ix) * 3 + 0] =
-				src.data[((po.y + iy) * src.cols + po.x + ix) * 3 + 0] * (255 - objA.data[((iy * objA.cols + ix) + 0)]) / 255 +
-				objRGB.data[((iy * objRGB.cols + ix) * 3 + 0)] * objA.data[((iy * objA.cols + ix) + 0)] / 255;
-			dst.data[((po.y + iy) * dst.cols + po.x + ix) * 3 + 1] =
-				src.data[((po.y + iy) * src.cols + po.x + ix) * 3 + 1] * (255 - objA.data[((iy * objA.cols + ix) + 1)]) / 255 +
-				objRGB.data[((iy * objRGB.cols + ix) * 3 + 1)] * objA.data[((iy * objA.cols + ix) + 1)] / 255;
-			dst.data[((po.y + iy) * dst.cols + po.x + ix) * 3 + 2] =
-				src.data[((po.y + iy) * src.cols + po.x + ix) * 3 + 2] * (255 - objA.data[((iy * objA.cols + ix) + 2)]) / 255 +
-				objRGB.data[((iy * objRGB.cols + ix) * 3 + 2)] * objA.data[((iy * objA.cols + ix) + 2)] / 255;
-		}
-	}
+	// src/objの重なり領域を算出
+	int x1 = __max(0, po.x);
+	int y1 = __max(0, po.y);
+	int x2 = __min(src.cols, po.x + objRGB.cols);
+	int y2 = __min(src.rows, po.y + objRGB.rows);
+	if (x1 >= x2 || y1 >= y2) return;
+
+	cv::Rect dstROI(x1, y1, x2 - x1, y2 - y1);
+	cv::Rect objROI(x1 - po.x, y1 - po.y, x2 - x1, y2 - y1);
+
+	// アルファを3chに拡張してfloat[0,1]に変換
+	cv::Mat alpha3ch;
+	cv::cvtColor(objA(objROI), alpha3ch, cv::COLOR_GRAY2BGR);
+	alpha3ch.convertTo(alpha3ch, CV_32FC3, 1.0 / 255.0);
+
+	// ブレンド: dst = fg * alpha + bg * (1 - alpha)
+	cv::Mat fg, bg;
+	objRGB(objROI).convertTo(fg, CV_32FC3);
+	dst(dstROI).convertTo(bg, CV_32FC3);
+
+	cv::Mat result = fg.mul(alpha3ch) + bg.mul(cv::Scalar(1, 1, 1) - alpha3ch);
+	result.convertTo(dst(dstROI), CV_8UC3);
 }
 
 // 処理時間計測
