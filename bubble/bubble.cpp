@@ -89,9 +89,7 @@ int _tmain(int argc, _TCHAR* argv[])
 	// カメラスレッド開始
 	printf("カメラオープン中...\n");
 	_beginthread(cam.captureThread, 0, (void*)&cam);
-	while (!cam.bOpened) {
-		Sleep(0);
-	}
+	WaitForSingleObject(cam.hOpenedEvent, INFINITE);
 
 	// ハンドラ関数を登録
 	SetConsoleCtrlHandler(HandlerRoutine, TRUE);

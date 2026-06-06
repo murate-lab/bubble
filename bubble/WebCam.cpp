@@ -6,10 +6,12 @@
 CWebCam::CWebCam()
 {
 	size = cv::Size(1280, 720);
+	hOpenedEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
 }
 
 CWebCam::~CWebCam()
 {
+	CloseHandle(hOpenedEvent);
 }
 
 void CWebCam::captureThread(void* inst)
@@ -29,6 +31,7 @@ void CWebCam::captureThread(void* inst)
 		cap.set(cv::CAP_PROP_FRAME_HEIGHT, pWebCam->size.height);
 		pWebCam->bOpened = true;
 		pWebCam->bExec = true;
+		SetEvent(pWebCam->hOpenedEvent);
 	} else {
 		return;
 	}
