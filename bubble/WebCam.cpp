@@ -1,4 +1,4 @@
-#include "stdafx.h"
+ï»¿#include "stdafx.h"
 #include "WebCam.h"
 
 #include <Windows.h>
@@ -21,7 +21,7 @@ void CWebCam::captureThread(void* inst)
 	pWebCam = (CWebCam*)inst;
 	InitializeCriticalSection(&pWebCam->csFrame);
 
-	// ƒJƒƒ‰ƒI[ƒvƒ“
+	// ã‚«ãƒ¡ãƒ©ã‚ªãƒ¼ãƒ—ãƒ³
 	cap.open(0);
 	if (cap.isOpened()) {
 		cap.set(cv::CAP_PROP_FPS, 30);
@@ -33,12 +33,12 @@ void CWebCam::captureThread(void* inst)
 		return;
 	}
 
-	// ‰f‘œŽæ“¾
+	// æ˜ åƒå–å¾—
 	while (pWebCam->bExec) {
-		// ƒJƒƒ‰‰f‘œ“ü—Í
+		// ã‚«ãƒ¡ãƒ©æ˜ åƒå…¥åŠ›
 		cap >> matWork;
 
-		// ƒoƒbƒtƒ@‚ÉƒRƒs[
+		// ãƒãƒƒãƒ•ã‚¡ã«ã‚³ãƒ”ãƒ¼
 		EnterCriticalSection(&pWebCam->csFrame);
 		matWork.copyTo(pWebCam->matFrame);
 		pWebCam->iFrame++;
